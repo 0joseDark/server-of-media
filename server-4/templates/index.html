@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Servidor de Media</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -26,40 +25,26 @@
             margin-top: 20px;
             border: 2px solid #000;
         }
-        #visualizer {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-        }
-        .bar {
-            width: 10px;
-            height: 100px;
-            margin: 0 2px;
-            background-color: green;
-        }
     </style>
 </head>
 <body>
     <h1>Servidor de Media</h1>
     <div id="controls">
+        <!-- Controlo do Media -->
         <button class="button" id="play">Ligar Media</button>
         <button class="button" id="stop">Desligar Media</button>
-        <button class="button" id="exit">Sair</button>
-        <br>
         <input type="file" id="mediaFile" accept=".mp4">
         <input type="text" id="mediaURL" placeholder="Ou insira uma URL">
+
+        <!-- Controlo do Servidor -->
+        <button class="button" id="startServer">Ligar Servidor</button>
+        <button class="button" id="stopServer">Desligar Servidor</button>
+        <button class="button" id="restartServer">Reiniciar Servidor</button>
     </div>
     <video id="video" controls></video>
     <audio id="audio" controls></audio>
-    <div id="visualizer"></div>
 
     <script>
-        const socket = io.connect('http://' + document.domain + ':' + location.port);
-        const videoElement = document.getElementById('video');
-        const audioElement = document.getElementById('audio');
-        const visualizer = document.getElementById('visualizer');
-        let audioContext, analyser, dataArray;
-
         document.getElementById('play').addEventListener('click', () => {
             const fileInput = document.getElementById('mediaFile');
             const urlInput = document.getElementById('mediaURL');
@@ -70,54 +55,28 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ media_source: mediaSource })
             }).then(() => {
-                videoElement.src = mediaSource;
-                videoElement.play();
-                audioElement.src = '/audio';
-                audioElement.play();
-                setupAudioAnalyzer(audioElement);
-                socket.emit('play_media');
+                document.getElementById('video').src = mediaSource;
+                document.getElementById('video').play();
+                document.getElementById('audio').src = '/audio';
+                document.getElementById('audio').play();
             });
         });
 
         document.getElementById('stop').addEventListener('click', () => {
-            videoElement.pause();
-            audioElement.pause();
             fetch('/stop_media', { method: 'POST' });
-            socket.emit('stop_media');
         });
 
-        document.getElementById('exit').addEventListener('click', () => {
-            window.close();
+        document.getElementById('startServer').addEventListener('click', () => {
+            fetch('/start_server', { method: 'POST' });
         });
 
-        function setupAudioAnalyzer(audio) {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const source = audioContext.createMediaElementSource(audio);
-                analyser = audioContext.createAnalyser();
-                source.connect(analyser);
-                analyser.connect(audioContext.destination);
-                analyser.fftSize = 64;
-                const bufferLength = analyser.frequencyBinCount;
-                dataArray = new Uint8Array(bufferLength);
-            }
-            requestAnimationFrame(drawVisualizer);
-        }
+        document.getElementById('stopServer').addEventListener('click', () => {
+            fetch('/stop_server', { method: 'POST' });
+        });
 
-        function drawVisualizer() {
-            visualizer.innerHTML = '';
-            if (analyser) {
-                analyser.getByteFrequencyData(dataArray);
-                for (let i = 0; i < dataArray.length; i++) {
-                    const barHeight = dataArray[i] / 2;
-                    const bar = document.createElement('div');
-                    bar.className = 'bar';
-                    bar.style.height = `${barHeight}px`;
-                    visualizer.appendChild(bar);
-                }
-            }
-            requestAnimationFrame(drawVisualizer);
-        }
+        document.getElementById('restartServer').addEventListener('click', () => {
+            fetch('/restart_server', { method: 'POST' });
+        });
     </script>
 </body>
 </html>

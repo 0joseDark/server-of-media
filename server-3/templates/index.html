@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Servidor de Media</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -26,17 +25,6 @@
             margin-top: 20px;
             border: 2px solid #000;
         }
-        #visualizer {
-            display: flex;
-            justify-content: center;
-            margin-top: 20px;
-        }
-        .bar {
-            width: 10px;
-            height: 100px;
-            margin: 0 2px;
-            background-color: green;
-        }
     </style>
 </head>
 <body>
@@ -44,6 +32,8 @@
     <div id="controls">
         <button class="button" id="play">Ligar Media</button>
         <button class="button" id="stop">Desligar Media</button>
+        <button class="button" id="restart">Reiniciar Servidor</button>
+        <button class="button" id="shutdown">Desligar Servidor</button>
         <button class="button" id="exit">Sair</button>
         <br>
         <input type="file" id="mediaFile" accept=".mp4">
@@ -51,14 +41,10 @@
     </div>
     <video id="video" controls></video>
     <audio id="audio" controls></audio>
-    <div id="visualizer"></div>
 
     <script>
-        const socket = io.connect('http://' + document.domain + ':' + location.port);
         const videoElement = document.getElementById('video');
         const audioElement = document.getElementById('audio');
-        const visualizer = document.getElementById('visualizer');
-        let audioContext, analyser, dataArray;
 
         document.getElementById('play').addEventListener('click', () => {
             const fileInput = document.getElementById('mediaFile');
@@ -74,8 +60,6 @@
                 videoElement.play();
                 audioElement.src = '/audio';
                 audioElement.play();
-                setupAudioAnalyzer(audioElement);
-                socket.emit('play_media');
             });
         });
 
@@ -83,41 +67,19 @@
             videoElement.pause();
             audioElement.pause();
             fetch('/stop_media', { method: 'POST' });
-            socket.emit('stop_media');
+        });
+
+        document.getElementById('restart').addEventListener('click', () => {
+            fetch('/restart', { method: 'POST' });
+        });
+
+        document.getElementById('shutdown').addEventListener('click', () => {
+            fetch('/shutdown', { method: 'POST' });
         });
 
         document.getElementById('exit').addEventListener('click', () => {
             window.close();
         });
-
-        function setupAudioAnalyzer(audio) {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const source = audioContext.createMediaElementSource(audio);
-                analyser = audioContext.createAnalyser();
-                source.connect(analyser);
-                analyser.connect(audioContext.destination);
-                analyser.fftSize = 64;
-                const bufferLength = analyser.frequencyBinCount;
-                dataArray = new Uint8Array(bufferLength);
-            }
-            requestAnimationFrame(drawVisualizer);
-        }
-
-        function drawVisualizer() {
-            visualizer.innerHTML = '';
-            if (analyser) {
-                analyser.getByteFrequencyData(dataArray);
-                for (let i = 0; i < dataArray.length; i++) {
-                    const barHeight = dataArray[i] / 2;
-                    const bar = document.createElement('div');
-                    bar.className = 'bar';
-                    bar.style.height = `${barHeight}px`;
-                    visualizer.appendChild(bar);
-                }
-            }
-            requestAnimationFrame(drawVisualizer);
-        }
     </script>
 </body>
 </html>
