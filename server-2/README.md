@@ -3,4 +3,4 @@
  - pip install flask flask-socketio numpy sounddevice
 - - http://localhost:5000
  - pip install flask soundfile
-
+- - http://127.0.0.1:5000/
