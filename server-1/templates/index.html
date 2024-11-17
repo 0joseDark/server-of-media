@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servidor de Media</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        #controls {
+            margin: 20px;
+        }
+        .button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #visualizer {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .bar {
+            width: 10px;
+            height: 100px;
+            margin: 0 2px;
+            background-color: green;
+            animation: bounce 0.5s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% {
+                transform: scaleY(0.5);
+            }
+            50% {
+                transform: scaleY(1);
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Servidor de Media</h1>
+    <div id="controls">
+        <button class="button" id="play">Ligar Media</button>
+        <button class="button" id="stop">Desligar Media</button>
+        <button class="button" id="exit">Sair</button>
+        <br>
+        <input type="file" id="mediaFile" accept=".mp4">
+        <input type="text" id="mediaURL" placeholder="Ou insira uma URL">
+    </div>
+    <div id="visualizer"></div>
+
+    <script>
+        const socket = io.connect('http://' + document.domain + ':' + location.port);
+
+        document.getElementById('play').addEventListener('click', () => {
+            const fileInput = document.getElementById('mediaFile');
+            const urlInput = document.getElementById('mediaURL');
+            const mediaSource = fileInput.files[0] ? URL.createObjectURL(fileInput.files[0]) : urlInput.value;
+            
+            fetch('/set_media', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ media_source: mediaSource })
+            }).then(() => {
+                socket.emit('play_media');
+            });
+        });
+
+        document.getElementById('stop').addEventListener('click', () => {
+            socket.emit('stop_media');
+        });
+
+        document.getElementById('exit').addEventListener('click', () => {
+            window.close();
+        });
+
+        socket.on('media_status', (data) => {
+            const visualizer = document.getElementById('visualizer');
+            visualizer.innerHTML = '';
+            if (data.status === 'playing') {
+                for (let i = 0; i < 30; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    bar.style.height = `${Math.random() * 100}px`;
+                    visualizer.appendChild(bar);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
