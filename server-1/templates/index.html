@@ -21,6 +21,11 @@
             font-size: 16px;
             cursor: pointer;
         }
+        video {
+            width: 80%;
+            margin-top: 20px;
+            border: 2px solid #000;
+        }
         #visualizer {
             display: flex;
             justify-content: center;
@@ -32,14 +37,6 @@
             margin: 0 2px;
             background-color: green;
             animation: bounce 0.5s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% {
-                transform: scaleY(0.5);
-            }
-            50% {
-                transform: scaleY(1);
-            }
         }
     </style>
 </head>
@@ -53,26 +50,34 @@
         <input type="file" id="mediaFile" accept=".mp4">
         <input type="text" id="mediaURL" placeholder="Ou insira uma URL">
     </div>
+    <video id="video" controls></video>
     <div id="visualizer"></div>
 
     <script>
         const socket = io.connect('http://' + document.domain + ':' + location.port);
+        const videoElement = document.getElementById('video');
+        const visualizer = document.getElementById('visualizer');
+        let audioContext, analyser, dataArray;
 
         document.getElementById('play').addEventListener('click', () => {
             const fileInput = document.getElementById('mediaFile');
             const urlInput = document.getElementById('mediaURL');
             const mediaSource = fileInput.files[0] ? URL.createObjectURL(fileInput.files[0]) : urlInput.value;
-            
+
             fetch('/set_media', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ media_source: mediaSource })
             }).then(() => {
+                videoElement.src = mediaSource;
+                videoElement.play();
+                setupAudioAnalyzer(videoElement);
                 socket.emit('play_media');
             });
         });
 
         document.getElementById('stop').addEventListener('click', () => {
+            videoElement.pause();
             socket.emit('stop_media');
         });
 
@@ -80,18 +85,34 @@
             window.close();
         });
 
-        socket.on('media_status', (data) => {
-            const visualizer = document.getElementById('visualizer');
+        function setupAudioAnalyzer(video) {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaElementSource(video);
+                analyser = audioContext.createAnalyser();
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                analyser.fftSize = 64;
+                const bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+            }
+            requestAnimationFrame(drawVisualizer);
+        }
+
+        function drawVisualizer() {
             visualizer.innerHTML = '';
-            if (data.status === 'playing') {
-                for (let i = 0; i < 30; i++) {
+            if (analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                for (let i = 0; i < dataArray.length; i++) {
+                    const barHeight = dataArray[i] / 2;
                     const bar = document.createElement('div');
                     bar.className = 'bar';
-                    bar.style.height = `${Math.random() * 100}px`;
+                    bar.style.height = `${barHeight}px`;
                     visualizer.appendChild(bar);
                 }
             }
-        });
+            requestAnimationFrame(drawVisualizer);
+        }
     </script>
 </body>
 </html>
